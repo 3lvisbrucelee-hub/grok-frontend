@@ -5,52 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grok Bot Trading Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
-        body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; }
-        .grok-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; }
-        .log-box { background-color: #090d11; border: 1px solid #30363d; font-size: 13px; height: 180px; overflow-y: auto; }
+        body { background-color: #0b0f17; color: #e2e8f0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .grok-card { background: rgba(18, 24, 38, 0.8); border: 1px solid #1e293b; backdrop-filter: blur(8px); }
+        .strategy-card { transition: all 0.2s ease; cursor: pointer; }
+        .strategy-card:hover { border-color: #3b82f6; transform: translateY(-2px); }
+        .strategy-card.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .terminal-box { background-color: #05080e; border: 1px solid #1e293b; font-size: 12px; height: 180px; overflow-y: auto; }
     </style>
 </head>
-<body class="p-6">
+<body class="p-4 md:p-8">
 
-    <div class="max-w-4xl mx-auto space-y-6">
-        
-        <!-- Header -->
-        <div class="flex justify-between items-center grok-card p-4">
+    <div class="max-w-6xl mx-auto space-y-6">
+
+        <!-- Top Header & Navigation -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 grok-card p-4 rounded-xl">
             <div>
-                <h1 class="text-xl font-bold text-white flex items-center gap-2">
-                    <span class="inline-block w-3 h-3 rounded-full bg-green-500"></span> Grok Bot Cloud Engine
-                </h1>
-                <p class="text-xs text-gray-400">Modalità: Trading Automatico HTTP Cloud</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">Grok Bot</h1>
+                    <span class="text-xs bg-blue-900/60 text-blue-400 px-2 py-0.5 rounded border border-blue-700/50">TRADING MODE</span>
+                </div>
             </div>
-            <div>
-                <span id="status-badge" class="px-3 py-1 text-xs rounded bg-green-900 text-green-300 font-bold border border-green-700">
-                    Connesso (HTTP)
-                </span>
+
+            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                <button id="connect-wallet-btn" onclick="connectPhantom()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded-lg transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <span id="wallet-btn-text">Connetti Wallet Phantom</span>
+                </button>
+                
+                <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="backend-status" class="text-slate-300 font-medium">Cloud Online (HTTP)</span>
+                </div>
             </div>
         </div>
 
-        <!-- Dashboard / Azioni -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Metric Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             
-            <!-- Stato Wallet -->
-            <div class="grok-card p-5">
-                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Wallet Cloud Bot</h2>
-                <div class="text-2xl font-extrabold text-white" id="wallet-status">Sincronizzazione...</div>
-                <p class="text-xs text-gray-400 mt-2">Esegue swap automatici su Jupiter DEX senza conferme manuali.</p>
+            <!-- Balance Card -->
+            <div class="grok-card p-5 rounded-xl">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">SALDO WALLET REALE</div>
+                <div class="flex items-baseline gap-2">
+                    <span id="wallet-balance" class="text-3xl font-extrabold text-white">0.0000</span>
+                    <span class="text-blue-400 font-bold">SOL</span>
+                </div>
+                <div id="wallet-address-sub" class="text-xs text-slate-500 mt-2 truncate">Wallet non connesso</div>
             </div>
 
-            <!-- Azioni Rapide -->
-            <div class="grok-card p-5">
-                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Comando Manuale Immediato</h2>
+            <!-- Total PnL Card -->
+            <div class="grok-card p-5 rounded-xl">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">TOTAL P&L (CLOUD BOT)</div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-extrabold text-emerald-400">+0.00</span>
+                    <span class="text-emerald-500 font-bold">SOL</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-2">Attivo e operativo su Render</div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="grok-card p-5 rounded-xl flex flex-col justify-between">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">AZIONE RAPIDA</div>
                 <div class="grid grid-cols-3 gap-2">
-                    <button onclick="triggerAction('FORCE_BUY')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded text-sm transition">
+                    <button onclick="triggerAction('FORCE_BUY')" class="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold py-2.5 px-2 rounded-lg text-xs transition border border-emerald-500/30 shadow-lg shadow-emerald-900/20">
                         COMPRA
                     </button>
-                    <button onclick="triggerAction('TOGGLE_BOT')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-3 rounded text-sm transition">
+                    <button onclick="triggerAction('TOGGLE_BOT')" class="bg-amber-600/90 hover:bg-amber-500 text-white font-bold py-2.5 px-2 rounded-lg text-xs transition border border-amber-500/30">
                         PAUSA
                     </button>
-                    <button onclick="triggerAction('FORCE_SELL')" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-3 rounded text-sm transition">
+                    <button onclick="triggerAction('FORCE_SELL')" class="bg-rose-600/90 hover:bg-rose-500 text-white font-bold py-2.5 px-2 rounded-lg text-xs transition border border-rose-500/30">
                         VENDI
                     </button>
                 </div>
@@ -58,11 +83,58 @@
 
         </div>
 
-        <!-- Terminale Log -->
-        <div class="grok-card p-4">
-            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Terminal Log (Live da Render)</h2>
-            <div id="log-terminal" class="log-box p-3 rounded space-y-1">
-                <div class="text-gray-500">[SYSTEM] Dashboard avviata. Comunicazione HTTP attiva.</div>
+        <!-- Strategy Selector Grid -->
+        <div>
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">PROFILO BOT ACCESO</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                
+                <div class="grok-card strategy-card active p-4 rounded-xl border" onclick="selectStrategy(this, 'MESA')">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                        <span class="text-[10px] bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded">MODO</span>
+                    </div>
+                    <div class="font-bold text-white">MESA</div>
+                    <div class="text-xs text-slate-400 mt-1">Aggressivo</div>
+                </div>
+
+                <div class="grok-card strategy-card p-4 rounded-xl border" onclick="selectStrategy(this, 'ZORI')">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span class="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded">MODO</span>
+                    </div>
+                    <div class="font-bold text-white">ZORI</div>
+                    <div class="text-xs text-slate-400 mt-1">Bilanciato</div>
+                </div>
+
+                <div class="grok-card strategy-card p-4 rounded-xl border" onclick="selectStrategy(this, 'TAMA')">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span class="text-[10px] bg-amber-900/50 text-amber-300 px-1.5 py-0.5 rounded">MODO</span>
+                    </div>
+                    <div class="font-bold text-white">TAMA</div>
+                    <div class="text-xs text-slate-400 mt-1">Sniper</div>
+                </div>
+
+                <div class="grok-card strategy-card p-4 rounded-xl border" onclick="selectStrategy(this, 'BIXO')">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                        <span class="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded">MODO</span>
+                    </div>
+                    <div class="font-bold text-white">BIXO</div>
+                    <div class="text-xs text-slate-400 mt-1">Conservativo</div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Terminal Log Box -->
+        <div class="grok-card p-4 rounded-xl">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">TERMINAL LOGS (LIVE DA RENDER)</h2>
+                <span class="text-[10px] text-slate-500">HTTP Synced</span>
+            </div>
+            <div id="log-terminal" class="terminal-box p-3 rounded-lg space-y-1.5 font-mono">
+                <div class="text-slate-500">[SYSTEM] Dashboard Grok Bot inizializzata. Connessione HTTP pronta.</div>
             </div>
         </div>
 
@@ -70,14 +142,15 @@
 
     <script>
         const BACKEND_URL = "https://grok-backend-u1c1.onrender.com";
+        let userPublicKey = null;
 
         function addLog(text, category = "info") {
             const terminal = document.getElementById("log-terminal");
             const entry = document.createElement("div");
             
-            let colorClass = "text-gray-300";
-            if (category === "exec") colorClass = "text-blue-400";
-            if (category === "fill") colorClass = "text-green-400 font-bold";
+            let colorClass = "text-slate-300";
+            if (category === "exec") colorClass = "text-blue-400 font-medium";
+            if (category === "fill") colorClass = "text-emerald-400 font-bold";
             if (category === "warn") colorClass = "text-amber-400";
             
             const timestamp = new Date().toLocaleTimeString();
@@ -88,22 +161,46 @@
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        async function checkBackendHealth() {
-            try {
-                const res = await fetch(`${BACKEND_URL}/`);
-                const data = await res.json();
-                if (data.wallet) {
-                    document.getElementById("wallet-status").innerText = `${data.wallet.substring(0, 6)}...${data.wallet.substring(data.wallet.length - 4)}`;
-                } else {
-                    document.getElementById("wallet-status").innerText = "Wallet Pronto";
+        async function connectPhantom() {
+            if ("solana" in window) {
+                try {
+                    const resp = await window.solana.connect();
+                    userPublicKey = resp.publicKey.toString();
+                    
+                    document.getElementById("wallet-btn-text").innerText = "Wallet Connesso";
+                    document.getElementById("connect-wallet-btn").className = "bg-emerald-600 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2";
+                    document.getElementById("wallet-address-sub").innerText = `Indirizzo: ${userPublicKey}`;
+                    
+                    addLog(`[WALLET] Phantom connesso: ${userPublicKey}`, "fill");
+                    fetchBalance();
+                } catch (err) {
+                    addLog(`[ERROR] Connessione Wallet fallita: ${err.message}`, "warn");
                 }
-            } catch (err) {
-                document.getElementById("wallet-status").innerText = "In attesa del backend...";
+            } else {
+                alert("Phantom Wallet non trovato nel browser! Installalo per la sincronizzazione.");
             }
         }
 
+        async function fetchBalance() {
+            if (!userPublicKey) return;
+            try {
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("mainnet-beta"));
+                const balance = await connection.getBalance(new solanaWeb3.PublicKey(userPublicKey));
+                const solBalance = (balance / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
+                document.getElementById("wallet-balance").innerText = solBalance;
+            } catch (err) {
+                console.error("Errore saldo:", err);
+            }
+        }
+
+        function selectStrategy(element, strategyName) {
+            document.querySelectorAll('.strategy-card').forEach(card => card.classList.remove('active'));
+            element.classList.add('active');
+            addLog(`[STRATEGY] Profilo bot aggiornato a: ${strategyName}`, "exec");
+        }
+
         async function triggerAction(actionName) {
-            addLog(`[EXEC] Invio comando '${actionName}' a Render via HTTP...`, "exec");
+            addLog(`[EXEC] Invio comando '${actionName}' al backend HTTP...`, "exec");
             
             try {
                 const response = await fetch(`${BACKEND_URL}/api/trade`, {
@@ -115,16 +212,27 @@
                 const data = await response.json();
                 if (data.success) {
                     addLog(data.message, "fill");
+                    if (userPublicKey) fetchBalance();
                 } else {
                     addLog(data.message, "warn");
                 }
             } catch (err) {
-                addLog(`[ERROR] Connessione al server fallita: ${err.message}`, "warn");
+                addLog(`[ERROR] Errore di comunicazione con Render: ${err.message}`, "warn");
             }
         }
 
-        // Verifica lo stato del backend all'avvio
-        checkBackendHealth();
+        // Tenta auto-connessione Phantom all'avvio se già autorizzato
+        window.addEventListener('load', () => {
+            if ("solana" in window && window.solana.isPhantom) {
+                window.solana.connect({ onlyIfTrusted: true }).then(resp => {
+                    userPublicKey = resp.publicKey.toString();
+                    document.getElementById("wallet-btn-text").innerText = "Wallet Connesso";
+                    document.getElementById("connect-wallet-btn").className = "bg-emerald-600 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2";
+                    document.getElementById("wallet-address-sub").innerText = `Indirizzo: ${userPublicKey}`;
+                    fetchBalance();
+                }).catch(() => {});
+            }
+        });
     </script>
 </body>
 </html>

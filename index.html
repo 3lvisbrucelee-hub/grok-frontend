@@ -11,7 +11,7 @@
     <div class="max-w-7xl mx-auto space-y-6">
         
         <!-- Header -->
-        <div class="flex justify-between items-center bg-[#EFEAE1] p-4 rounded-xl shadow-sm">
+        <div class="flex justify-between items-center bg-[#EFEAE1] p-4 rounded-xl shadow-sm flex-wrap gap-3">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white font-bold text-xl">🤖</div>
                 <div>
@@ -19,14 +19,28 @@
                     <p class="text-xs text-gray-500 uppercase tracking-widest">Trading Mode</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-2 bg-emerald-100 px-3 py-1.5 rounded-full">
-                <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                <span id="connection-status" class="text-xs font-bold text-emerald-700">Connessione in corso...</span>
+            
+            <div class="flex items-center space-x-3">
+                <!-- Connect Wallet Phantom Button -->
+                <button id="phantom-btn" onclick="connectPhantom()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition shadow flex items-center space-x-2">
+                    <span>👻 Connetti Phantom</span>
+                </button>
+
+                <div class="flex items-center space-x-2 bg-emerald-100 px-3 py-2 rounded-lg">
+                    <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    <span id="connection-status" class="text-xs font-bold text-emerald-700">Connessione...</span>
+                </div>
             </div>
         </div>
 
+        <!-- Wallet Info Banner -->
+        <div id="wallet-info" class="hidden bg-purple-100 border border-purple-300 p-3 rounded-xl flex justify-between items-center text-xs text-purple-900">
+            <span><strong>Wallet Connesso:</strong> <span id="wallet-address" class="font-mono">---</span></span>
+            <span id="wallet-sol-balance" class="font-bold">0.00 SOL</span>
+        </div>
+
         <!-- Top Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
                 <p class="text-xs text-gray-500 uppercase font-semibold">Balance</p>
                 <h2 id="balance-display" class="text-3xl font-black mt-1">$3,625.30</h2>
@@ -37,32 +51,71 @@
                 <h2 class="text-3xl font-black text-emerald-600 mt-1">+<span id="pnl-display">3,551.30</span></h2>
                 <p class="text-xs text-emerald-600 mt-1">+4799.1%</p>
             </div>
+            <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm flex flex-col justify-between">
+                <p class="text-xs text-gray-500 uppercase font-semibold">Azione Rapida</p>
+                <div class="grid grid-cols-3 gap-2 mt-2">
+                    <button onclick="sendAction('FORCE_BUY')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs shadow">COMPRA</button>
+                    <button onclick="sendAction('TOGGLE_BOT')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-lg text-xs shadow">PAUSA</button>
+                    <button onclick="sendAction('FORCE_SELL')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs shadow">VENDI</button>
+                </div>
+            </div>
         </div>
 
-        <!-- Activity Log & Terminal -->
+        <!-- Strategy Selection -->
         <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
-            <h3 class="font-bold text-sm uppercase text-gray-600 mb-3">Activity Log (Live da Render)</h3>
-            <div id="log-terminal" class="bg-black text-green-400 font-mono text-xs p-4 rounded-lg h-48 overflow-y-auto space-y-1">
-                <p>[SYSTEM] Inizializzazione connessione WebSocket con il server...</p>
+            <h3 class="font-bold text-xs uppercase text-gray-500 mb-3">Seleziona Profilo Bot</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button onclick="selectBot('MESA')" class="bg-white p-3 rounded-lg border-2 border-indigo-500 text-center shadow-sm">
+                    <div class="text-lg">🔵</div>
+                    <div class="font-bold text-xs mt-1">MESA</div>
+                    <div class="text-[10px] text-gray-400">Aggressivo</div>
+                </button>
+                <button onclick="selectBot('ZORI')" class="bg-white p-3 rounded-lg border border-gray-200 text-center shadow-sm">
+                    <div class="text-lg">🟢</div>
+                    <div class="font-bold text-xs mt-1">ZORI</div>
+                    <div class="text-[10px] text-gray-400">Bilanciato</div>
+                </button>
+                <button onclick="selectBot('TAMA')" class="bg-white p-3 rounded-lg border border-gray-200 text-center shadow-sm">
+                    <div class="text-lg">🟠</div>
+                    <div class="font-bold text-xs mt-1">TAMA</div>
+                    <div class="text-[10px] text-gray-400">Sniper</div>
+                </button>
+                <button onclick="selectBot('BIXO')" class="bg-white p-3 rounded-lg border border-gray-200 text-center shadow-sm">
+                    <div class="text-lg">🟡</div>
+                    <div class="font-bold text-xs mt-1">BIXO</div>
+                    <div class="text-[10px] text-gray-400">Conservativo</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Activity Log Terminal -->
+        <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-sm uppercase text-gray-600">Activity Log (Live da Render)</h3>
+                <button onclick="clearLogs()" class="text-xs text-gray-500 hover:underline">Pulisci</button>
+            </div>
+            <div id="log-terminal" class="bg-black text-green-400 font-mono text-xs p-4 rounded-lg h-56 overflow-y-auto space-y-1 shadow-inner">
+                <p>[SYSTEM] Connessione in corso...</p>
             </div>
         </div>
 
     </div>
 
     <script>
-        // SOSTITUISCI CON IL TUO URL WEBSOCKET DI RENDER (cambia https:// in wss://)
         const BACKEND_WS_URL = "wss://grok-backend-u1c1.onrender.com";
+        let ws;
+        let phantomWallet = null;
 
         const statusEl = document.getElementById("connection-status");
         const balanceEl = document.getElementById("balance-display");
         const terminalEl = document.getElementById("log-terminal");
 
         function connect() {
-            const ws = new WebSocket(BACKEND_WS_URL);
+            ws = new WebSocket(BACKEND_WS_URL);
 
             ws.onopen = () => {
                 statusEl.innerText = "LIVE (Connesso)";
-                addLog("[SYSTEM] Connesso con successo al bot di trading in cloud!");
+                addLog("[SYSTEM] Connesso al Trading Engine su Render!");
             };
 
             ws.onmessage = (event) => {
@@ -79,17 +132,59 @@
 
             ws.onclose = () => {
                 statusEl.innerText = "Disconnesso - Riconnessione...";
-                statusEl.parentElement.className = "flex items-center space-x-2 bg-amber-100 px-3 py-1.5 rounded-full";
-                setTimeout(connect, 3000); // Riprova dopo 3 secondi
+                setTimeout(connect, 3000);
             };
         }
 
         function addLog(text, category = "info") {
             const p = document.createElement("p");
             p.innerText = text;
-            if (category === "fill" || category === "exec") p.className = "text-cyan-400";
-            if (category === "warn") p.className = "text-yellow-400";
+            if (category === "fill") p.className = "text-emerald-400 font-bold";
+            if (category === "exec") p.className = "text-cyan-400";
+            if (category === "warn") p.className = "text-yellow-400 font-bold";
             terminalEl.prepend(p);
+        }
+
+        function clearLogs() {
+            terminalEl.innerHTML = "";
+        }
+
+        function sendAction(actionType) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: actionType, symbol: "SOL" }));
+                addLog(`[COMMAND] Inviato comando: ${actionType}`);
+            } else {
+                alert("WebSocket non connesso al server!");
+            }
+        }
+
+        function selectBot(botName) {
+            addLog(`[STRATEGY] Selezionata strategia bot: ${botName}`);
+        }
+
+        // --- PHANTOM WALLET INTEGRATION ---
+        async function connectPhantom() {
+            const isPhantomInstalled = window.solana && window.solana.isPhantom;
+            
+            if (!isPhantomInstalled) {
+                alert("Phantom Wallet non trovato! Installa l'estensione o l'app Phantom sul tuo dispositivo.");
+                window.open("https://phantom.app/", "_blank");
+                return;
+            }
+
+            try {
+                const resp = await window.solana.connect();
+                phantomWallet = resp.publicKey.toString();
+                
+                document.getElementById("phantom-btn").innerText = "✅ Wallet Connesso";
+                document.getElementById("wallet-info").classList.remove("hidden");
+                document.getElementById("wallet-address").innerText = phantomWallet.substring(0,6) + "..." + phantomWallet.substring(phantomWallet.length - 4);
+                
+                addLog(`[WALLET] Connesso con successo: ${phantomWallet}`);
+            } catch (err) {
+                console.error("Errore connessione Phantom:", err);
+                addLog(`[ERROR] Connessione wallet annullata.`);
+            }
         }
 
         connect();

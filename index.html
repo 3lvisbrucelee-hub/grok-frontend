@@ -6,6 +6,8 @@
     <title>Grok Bot Trading Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Solana Web3.js per leggere i saldi reali -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 </head>
 <body class="bg-[#F7F5EE] text-gray-800 font-sans p-4 md:p-6">
     <div class="max-w-7xl mx-auto space-y-6">
@@ -42,14 +44,14 @@
         <!-- Top Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Balance</p>
-                <h2 id="balance-display" class="text-3xl font-black mt-1">$3,625.30</h2>
-                <p class="text-xs text-gray-400 mt-1">started at $74.00</p>
+                <p class="text-xs text-gray-500 uppercase font-semibold">Balance Wallet Reale</p>
+                <h2 id="balance-display" class="text-3xl font-black mt-1">0.00 SOL</h2>
+                <p id="usd-balance-display" class="text-xs text-gray-400 mt-1">($0.00 USD)</p>
             </div>
             <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Total P&L</p>
-                <h2 class="text-3xl font-black text-emerald-600 mt-1">+<span id="pnl-display">3,551.30</span></h2>
-                <p class="text-xs text-emerald-600 mt-1">+4799.1%</p>
+                <p class="text-xs text-gray-500 uppercase font-semibold">Total P&L (Cloud Bot)</p>
+                <h2 class="text-3xl font-black text-emerald-600 mt-1">+<span id="pnl-display">0.00</span> SOL</h2>
+                <p class="text-xs text-emerald-600 mt-1">Attivo su Render</p>
             </div>
             <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm flex flex-col justify-between">
                 <p class="text-xs text-gray-500 uppercase font-semibold">Azione Rapida</p>
@@ -108,6 +110,7 @@
 
         const statusEl = document.getElementById("connection-status");
         const balanceEl = document.getElementById("balance-display");
+        const usdBalanceEl = document.getElementById("usd-balance-display");
         const terminalEl = document.getElementById("log-terminal");
 
         function connect() {
@@ -120,11 +123,6 @@
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                
-                if (data.type === "INIT" || data.type === "BALANCE_UPDATE") {
-                    balanceEl.innerText = `$${Number(data.balance).toLocaleString("en-US", {minimumFractionDigits: 2})}`;
-                }
-                
                 if (data.type === "LOG") {
                     addLog(data.text, data.category);
                 }
@@ -162,7 +160,7 @@
             addLog(`[STRATEGY] Selezionata strategia bot: ${botName}`);
         }
 
-        // --- PHANTOM WALLET INTEGRATION ---
+        // --- PHANTOM WALLET REAL BALANCE FETCH ---
         async function connectPhantom() {
             const isPhantomInstalled = window.solana && window.solana.isPhantom;
             
@@ -180,10 +178,42 @@
                 document.getElementById("wallet-info").classList.remove("hidden");
                 document.getElementById("wallet-address").innerText = phantomWallet.substring(0,6) + "..." + phantomWallet.substring(phantomWallet.length - 4);
                 
-                addLog(`[WALLET] Connesso con successo: ${phantomWallet}`);
+                addLog(`[WALLET] Connesso: ${phantomWallet}`);
+
+                // Legge il saldo reale direttamente dalla blockchain Solana Mainnet
+                await fetchWalletBalance(resp.publicKey);
+
             } catch (err) {
                 console.error("Errore connessione Phantom:", err);
                 addLog(`[ERROR] Connessione wallet annullata.`);
+            }
+        }
+
+        async function fetchWalletBalance(publicKey) {
+            try {
+                // Connessione al nodo pubblico di Solana
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
+                const balanceLamports = await connection.getBalance(publicKey);
+                const solBalance = balanceLamports / solanaWeb3.LAMPORTS_PER_SOL;
+
+                // Mostra il saldo in SOL
+                balanceEl.innerText = `${solBalance.toFixed(4)} SOL`;
+
+                // Recupera il prezzo stimato di SOL in USD da un'API pubblica gratuita per il cambio
+                try {
+                    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+                    const data = await res.json();
+                    const solPriceUsd = data.solana.usd;
+                    const usdValue = solBalance * solPriceUsd;
+                    usdBalanceEl.innerText = `($${usdValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD)`;
+                } catch (e) {
+                    usdBalanceEl.innerText = "";
+                }
+
+                addLog(`[WALLET] Saldo letto correttamente: ${solBalance.toFixed(4)} SOL`);
+            } catch (err) {
+                console.error("Errore lettura saldo:", err);
+                addLog(`[ERROR] Impossibile leggere il saldo dalla blockchain.`);
             }
         }
 

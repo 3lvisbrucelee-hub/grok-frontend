@@ -163,20 +163,36 @@
 
         async function fetchBalance() {
             try {
-                const res = await fetch(`${BACKEND_URL}/api/balance`);
+                const res = await fetch(`${BACKEND_URL}/api/balance`, { signal: AbortSignal.timeout(4000) });
                 const data = await res.json();
-                if (data.success) {
+                if (data.success && data.balance >= 0) {
                     document.getElementById("wallet-balance").innerText = data.balance.toFixed(4);
                     if (data.wallet) {
-                        document.getElementById("wallet-address-sub").innerText = `Indirizzo Bot: ${data.wallet.substring(0, 6)}...${data.wallet.substring(data.wallet.length - 4)}`;
+                        document.getElementById("wallet-address-sub").innerText = `Bot: ${data.wallet.substring(0, 6)}...`;
+                        return;
                     }
-                } else {
-                    document.getElementById("wallet-address-sub").innerText = "Errore lettura saldo da Render";
                 }
             } catch (err) {
-                console.error("Errore recupero saldo da Render:", err);
-                document.getElementById("wallet-address-sub").innerText = "Backend in caricamento...";
+                console.log("Backend occupato, verifico Phantom...");
             }
+
+            // Fallback su Phantom se connesso
+            if (userPublicKey && "solana" in window) {
+                try {
+                    const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com");
+                    const pubKeyObj = new solanaWeb3.PublicKey(userPublicKey);
+                    const lamports = await connection.getBalance(pubKeyObj);
+                    const solBalance = (lamports / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
+                    document.getElementById("wallet-balance").innerText = solBalance;
+                    document.getElementById("wallet-address-sub").innerText = `Phantom: ${userPublicKey.substring(0, 6)}...`;
+                    return;
+                } catch (e) {
+                    console.error("Errore RPC Solana:", e);
+                }
+            }
+
+            document.getElementById("wallet-balance").innerText = "0.0000";
+            document.getElementById("wallet-address-sub").innerText = "Connetti Phantom o verifica Render";
         }
 
         async function connectPhantom() {
@@ -189,6 +205,7 @@
                     document.getElementById("connect-wallet-btn").className = "bg-emerald-600 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2";
                     
                     addLog(`[WALLET] Phantom personale collegato: ${userPublicKey}`, "fill");
+                    fetchBalance();
                 } catch (err) {
                     addLog(`[ERROR] Connessione Wallet fallita: ${err.message}`, "warn");
                 }
@@ -216,7 +233,7 @@
                 const data = await response.json();
                 if (data.success) {
                     addLog(data.message, "fill");
-                    fetchBalance(); // Aggiorna subito il saldo dopo l'operazione
+                    fetchBalance();
                 } else {
                     addLog(data.message, "warn");
                 }
@@ -225,7 +242,6 @@
             }
         }
 
-        // Recupera il saldo reale da Render all'avvio e aggiorna ogni 10 secondi
         window.addEventListener('load', () => {
             fetchBalance();
             setInterval(fetchBalance, 10000);
@@ -235,6 +251,7 @@
                     userPublicKey = resp.publicKey.toString();
                     document.getElementById("wallet-btn-text").innerText = "Phantom Connesso";
                     document.getElementById("connect-wallet-btn").className = "bg-emerald-600 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2";
+                    fetchBalance();
                 }).catch(() => {});
             }
         });

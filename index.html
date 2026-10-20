@@ -6,8 +6,6 @@
     <title>Grok Bot Trading Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Solana Web3.js -->
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 </head>
 <body class="bg-[#F7F5EE] text-gray-800 font-sans p-4 md:p-6">
     <div class="max-w-7xl mx-auto space-y-6">
@@ -160,6 +158,7 @@
             addLog(`[STRATEGY] Selezionata strategia bot: ${botName}`);
         }
 
+        // --- PHANTOM CONNECT + API DIRECT BALANCE FETCH ---
         async function connectPhantom() {
             const isPhantomInstalled = window.solana && window.solana.isPhantom;
             
@@ -179,8 +178,8 @@
                 
                 addLog(`[WALLET] Connesso: ${phantomWallet}`);
 
-                // Lettura diretta e sicura tramite endpoint pubblico stabile di Solana
-                await fetchRealBalance(resp.publicKey);
+                // Chiamata HTTP API diretta per leggere il saldo esatto
+                await fetchAccountBalance(phantomWallet);
 
             } catch (err) {
                 console.error("Errore connessione Phantom:", err);
@@ -188,26 +187,44 @@
             }
         }
 
-        async function fetchRealBalance(publicKey) {
+        async function fetchAccountBalance(address) {
             try {
-                const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com", "confirmed");
-                const balanceLamports = await connection.getBalance(publicKey);
-                const solBalance = balanceLamports / solanaWeb3.LAMPORTS_PER_SOL;
+                // Utilizza l'API JSON-RPC aperta via HTTPPOST (non bloccata da CORS)
+                const response = await fetch("https://api.mainnet-beta.solana.com", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: 1,
+                        method: "getBalance",
+                        params: [address]
+                    })
+                });
 
-                balanceEl.innerText = `${solBalance.toFixed(4)} SOL`;
-                document.getElementById("wallet-sol-balance").innerText = `${solBalance.toFixed(4)} SOL`;
+                const result = await response.json();
+                if (result.result && result.result.value !== undefined) {
+                    const solBalance = result.result.value / 1000000000;
+                    balanceEl.innerText = `${solBalance.toFixed(4)} SOL`;
+                    document.getElementById("wallet-sol-balance").innerText = `${solBalance.toFixed(4)} SOL`;
 
-                // Prezzo SOL in USD
-                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-                const data = await res.json();
-                const usdValue = solBalance * data.solana.usd;
-                usdBalanceEl.innerText = `($${usdValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD)`;
+                    // Prezzo SOL in USD via CoinGecko
+                    fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd")
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.solana && data.solana.usd) {
+                                const usdVal = solBalance * data.solana.usd;
+                                usdBalanceEl.innerText = `($${usdVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD)`;
+                            }
+                        })
+                        .catch(() => {});
 
-                addLog(`[WALLET] Saldo aggiornato: ${solBalance.toFixed(4)} SOL`);
+                    addLog(`[WALLET] Saldo reale caricato: ${solBalance.toFixed(4)} SOL`);
+                } else {
+                    balanceEl.innerText = "0.0000 SOL";
+                }
             } catch (err) {
-                console.error(err);
-                balanceEl.innerText = "0.0000 SOL";
-                addLog(`[WARN] Impossibile leggere il saldo di rete, impostato a 0 SOL.`);
+                console.error("Errore fetch saldo:", err);
+                addLog(`[WARN] Errore lettura saldo via API.`);
             }
         }
 

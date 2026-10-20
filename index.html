@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grok Bot Trading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-[#F7F5EE] text-gray-800 font-sans p-4 md:p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center bg-[#EFEAE1] p-4 rounded-xl shadow-sm">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white font-bold text-xl">🤖</div>
+                <div>
+                    <h1 class="text-xl font-black tracking-wider">Grok Bot</h1>
+                    <p class="text-xs text-gray-500 uppercase tracking-widest">Trading Mode</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 bg-emerald-100 px-3 py-1.5 rounded-full">
+                <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span id="connection-status" class="text-xs font-bold text-emerald-700">Connessione in corso...</span>
+            </div>
+        </div>
+
+        <!-- Top Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
+                <p class="text-xs text-gray-500 uppercase font-semibold">Balance</p>
+                <h2 id="balance-display" class="text-3xl font-black mt-1">$3,625.30</h2>
+                <p class="text-xs text-gray-400 mt-1">started at $74.00</p>
+            </div>
+            <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
+                <p class="text-xs text-gray-500 uppercase font-semibold">Total P&L</p>
+                <h2 class="text-3xl font-black text-emerald-600 mt-1">+<span id="pnl-display">3,551.30</span></h2>
+                <p class="text-xs text-emerald-600 mt-1">+4799.1%</p>
+            </div>
+        </div>
+
+        <!-- Activity Log & Terminal -->
+        <div class="bg-[#EFEAE1] p-5 rounded-xl shadow-sm">
+            <h3 class="font-bold text-sm uppercase text-gray-600 mb-3">Activity Log (Live da Render)</h3>
+            <div id="log-terminal" class="bg-black text-green-400 font-mono text-xs p-4 rounded-lg h-48 overflow-y-auto space-y-1">
+                <p>[SYSTEM] Inizializzazione connessione WebSocket con il server...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // SOSTITUISCI CON IL TUO URL WEBSOCKET DI RENDER (cambia https:// in wss://)
+        const BACKEND_WS_URL = "wss://grok-backend-u1c1.onrender.com";
+
+        const statusEl = document.getElementById("connection-status");
+        const balanceEl = document.getElementById("balance-display");
+        const terminalEl = document.getElementById("log-terminal");
+
+        function connect() {
+            const ws = new WebSocket(BACKEND_WS_URL);
+
+            ws.onopen = () => {
+                statusEl.innerText = "LIVE (Connesso)";
+                addLog("[SYSTEM] Connesso con successo al bot di trading in cloud!");
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === "INIT" || data.type === "BALANCE_UPDATE") {
+                    balanceEl.innerText = `$${Number(data.balance).toLocaleString("en-US", {minimumFractionDigits: 2})}`;
+                }
+                
+                if (data.type === "LOG") {
+                    addLog(data.text, data.category);
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.innerText = "Disconnesso - Riconnessione...";
+                statusEl.parentElement.className = "flex items-center space-x-2 bg-amber-100 px-3 py-1.5 rounded-full";
+                setTimeout(connect, 3000); // Riprova dopo 3 secondi
+            };
+        }
+
+        function addLog(text, category = "info") {
+            const p = document.createElement("p");
+            p.innerText = text;
+            if (category === "fill" || category === "exec") p.className = "text-cyan-400";
+            if (category === "warn") p.className = "text-yellow-400";
+            terminalEl.prepend(p);
+        }
+
+        connect();
+    </script>
+</body>
+</html>

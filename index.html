@@ -52,7 +52,7 @@
                     <span id="wallet-balance" class="text-3xl font-extrabold text-white">0.0000</span>
                     <span class="text-blue-400 font-bold">SOL</span>
                 </div>
-                <div id="wallet-address-sub" class="text-xs text-slate-500 mt-2 truncate">Wallet non connesso</div>
+                <div id="wallet-address-sub" class="text-xs text-slate-500 mt-2 truncate">Sincronizzazione saldo in corso...</div>
             </div>
 
             <!-- Total PnL Card -->
@@ -161,35 +161,39 @@
             terminal.scrollTop = terminal.scrollHeight;
         }
 
+        async function fetchBalance() {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/balance`);
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById("wallet-balance").innerText = data.balance.toFixed(4);
+                    if (data.wallet) {
+                        document.getElementById("wallet-address-sub").innerText = `Indirizzo Bot: ${data.wallet.substring(0, 6)}...${data.wallet.substring(data.wallet.length - 4)}`;
+                    }
+                } else {
+                    document.getElementById("wallet-address-sub").innerText = "Errore lettura saldo da Render";
+                }
+            } catch (err) {
+                console.error("Errore recupero saldo da Render:", err);
+                document.getElementById("wallet-address-sub").innerText = "Backend in caricamento...";
+            }
+        }
+
         async function connectPhantom() {
             if ("solana" in window) {
                 try {
                     const resp = await window.solana.connect();
                     userPublicKey = resp.publicKey.toString();
                     
-                    document.getElementById("wallet-btn-text").innerText = "Wallet Connesso";
+                    document.getElementById("wallet-btn-text").innerText = "Phantom Connesso";
                     document.getElementById("connect-wallet-btn").className = "bg-emerald-600 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2";
-                    document.getElementById("wallet-address-sub").innerText = `Indirizzo: ${userPublicKey}`;
                     
-                    addLog(`[WALLET] Phantom connesso: ${userPublicKey}`, "fill");
-                    fetchBalance();
+                    addLog(`[WALLET] Phantom personale collegato: ${userPublicKey}`, "fill");
                 } catch (err) {
                     addLog(`[ERROR] Connessione Wallet fallita: ${err.message}`, "warn");
                 }
             } else {
                 alert("Phantom Wallet non trovato nel browser! Installalo per la sincronizzazione.");
-            }
-        }
-
-        async function fetchBalance() {
-            if (!userPublicKey) return;
-            try {
-                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("mainnet-beta"));
-                const balance = await connection.getBalance(new solanaWeb3.PublicKey(userPublicKey));
-                const solBalance = (balance / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
-                document.getElementById("wallet-balance").innerText = solBalance;
-            } catch (err) {
-                console.error("Errore saldo:", err);
             }
         }
 
@@ -212,7 +216,7 @@
                 const data = await response.json();
                 if (data.success) {
                     addLog(data.message, "fill");
-                    if (userPublicKey) fetchBalance();
+                    fetchBalance(); // Aggiorna subito il saldo dopo l'operazione
                 } else {
                     addLog(data.message, "warn");
                 }
@@ -221,15 +225,16 @@
             }
         }
 
-        // Tenta auto-connessione Phantom all'avvio se già autorizzato
+        // Recupera il saldo reale da Render all'avvio e aggiorna ogni 10 secondi
         window.addEventListener('load', () => {
+            fetchBalance();
+            setInterval(fetchBalance, 10000);
+            
             if ("solana" in window && window.solana.isPhantom) {
                 window.solana.connect({ onlyIfTrusted: true }).then(resp => {
                     userPublicKey = resp.publicKey.toString();
-                    document.getElementById("wallet-btn-text").innerText = "Wallet Connesso";
+                    document.getElementById("wallet-btn-text").innerText = "Phantom Connesso";
                     document.getElementById("connect-wallet-btn").className = "bg-emerald-600 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2";
-                    document.getElementById("wallet-address-sub").innerText = `Indirizzo: ${userPublicKey}`;
-                    fetchBalance();
                 }).catch(() => {});
             }
         });

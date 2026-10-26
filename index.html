@@ -85,7 +85,14 @@
                 const data = await response.json();
                 logMessage(`Risposta ricevuta: ${JSON.stringify(data)}`);
             } catch (err) {
-                logMessage(`Errore di rete o blocco browser (HTTPS -> HTTP).`);
+                logMessage(`Connessione diretta bloccata dal browser (HTTPS/HTTP). Verifico la VPS...`);
+                try {
+                    const testPing = await fetch(`${API_URL}/`);
+                    const pingData = await testPing.json();
+                    logMessage(`VPS Raggiunta! Stato: ${pingData.status}`);
+                } catch (pingErr) {
+                    logMessage(`Errore critico: impossibile contattare la VPS.`);
+                }
             }
         }
     </script>
